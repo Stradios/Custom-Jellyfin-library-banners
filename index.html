@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f0f13; font-family: 'Segoe UI', system-ui, sans-serif; color: #e0e0e0; padding: 18px; }
+  h1 { font-size: 14px; font-weight: 600; color: #a78bfa; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 2px; }
+  .sub { font-size: 11px; color: #6b7280; margin-bottom: 14px; }
+  .sec { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 7px; margin-top: 13px; }
+  .library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(105px,1fr)); gap: 6px; }
+  .lib-btn { background: #1a1a24; border: 1.5px solid #2d2d3d; border-radius: 7px; padding: 7px 5px; cursor: pointer; text-align: center; font-size: 11px; color: #9ca3af; transition: all 0.12s; user-select: none; }
+  .lib-btn:hover { border-color: #a78bfa; color: #e0e0e0; }
+  .lib-btn.active { border-color: #a78bfa; color: #a78bfa; background: #1e1830; }
+  .lib-icon-sm { font-size: 15px; display: block; margin-bottom: 2px; }
+  .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 11px; margin-top: 13px; margin-bottom: 13px; }
+  .ctrl-group { display: flex; flex-direction: column; gap: 5px; }
+  label { font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; }
+  input[type=text], select { background: #1a1a24; border: 1px solid #2d2d3d; color: #e0e0e0; padding: 6px 8px; border-radius: 6px; font-size: 12px; width: 100%; }
+  input[type=range] { width: 100%; accent-color: #a78bfa; }
+  .color-row { display: flex; align-items: center; gap: 6px; }
+  .color-swatch { width: 32px; height: 32px; border-radius: 5px; border: 1px solid #2d2d3d; cursor: pointer; flex-shrink: 0; position: relative; overflow: hidden; }
+  .color-swatch input[type=color] { position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); opacity: 0; cursor: pointer; }
+  .color-swatch-inner { width: 100%; height: 100%; border-radius: 4px; pointer-events: none; }
+  .hex-input { flex: 1; background: #1a1a24; border: 1px solid #2d2d3d; color: #e0e0e0; padding: 6px 8px; border-radius: 6px; font-size: 12px; font-family: monospace; }
+  .hex-input:focus { outline: none; border-color: #a78bfa; }
+  .hex-input.invalid { border-color: #cc3333; }
+  .range-row { display: flex; align-items: center; gap: 8px; }
+  .range-val { font-size: 11px; color: #a78bfa; font-family: monospace; min-width: 38px; text-align: right; }
+  .toggle-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 12px; }
+  .toggle-btn { background: #1a1a24; border: 1px solid #2d2d3d; color: #9ca3af; border-radius: 5px; padding: 4px 11px; font-size: 11px; cursor: pointer; transition: all 0.12s; user-select: none; }
+  .toggle-btn.on { background: #1e1830; border-color: #a78bfa; color: #a78bfa; }
+  .canvas-wrap { background: #111; border: 1px solid #2d2d3d; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+  canvas { display: block; width: 100%; border-radius: 4px; }
+  .btn-row { display: flex; gap: 7px; flex-wrap: wrap; }
+  .btn { padding: 9px 20px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all 0.13s; }
+  .btn-primary { background: #7c3aed; color: white; } .btn-primary:hover { background: #6d28d9; }
+  .btn-all { background: #1e1830; color: #a78bfa; border: 1.5px solid #a78bfa; } .btn-all:hover { background: #2d1f4e; }
+  .btn-ghost { background: #1a1a24; color: #9ca3af; border: 1px solid #2d2d3d; } .btn-ghost:hover { color: #e0e0e0; border-color: #9ca3af; }
+  .font-picker-wrap { position: relative; }
+  .font-selected { background: #1a1a24; border: 1px solid #2d2d3d; border-radius: 6px; padding: 8px 32px 8px 10px; cursor: pointer; font-size: 20px; color: #e0e0e0; display: flex; align-items: center; min-height: 40px; position: relative; user-select: none; }
+  .font-selected::after { content: '▾'; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: #9ca3af; font-family: sans-serif; }
+  .font-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #1a1a24; border: 1px solid #2d2d3d; border-radius: 6px; z-index: 999; max-height: 240px; overflow-y: auto; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.6); }
+  .font-dropdown.open { display: block; }
+  .font-option { padding: 9px 12px; cursor: pointer; color: #e0e0e0; font-size: 20px; border-bottom: 1px solid #22222e; }
+  .font-option:last-child { border-bottom: none; }
+  .font-option:hover { background: #22223a; }
+  .font-option.active { background: #1e1830; color: #a78bfa; }
+  .emoji-picker-wrap { position: relative; }
+  .emoji-trigger { display: flex; align-items: center; gap: 8px; background: #1a1a24; border: 1px solid #2d2d3d; border-radius: 6px; padding: 6px 10px; cursor: pointer; user-select: none; min-height: 38px; }
+  .emoji-trigger-img { width: 26px; height: 26px; object-fit: contain; }
+  .emoji-trigger-label { font-size: 12px; color: #9ca3af; flex: 1; }
+  .emoji-panel { position: absolute; top: calc(100% + 4px); left: 0; width: 320px; background: #1a1a24; border: 1px solid #2d2d3d; border-radius: 8px; z-index: 1000; box-shadow: 0 8px 28px rgba(0,0,0,0.7); display: none; padding: 10px; }
+  .emoji-panel.open { display: block; }
+  .emoji-search { width: 100%; background: #111; border: 1px solid #2d2d3d; color: #e0e0e0; padding: 6px 10px; border-radius: 6px; font-size: 12px; margin-bottom: 8px; }
+  .emoji-search:focus { outline: none; border-color: #a78bfa; }
+  .emoji-cats { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  .emoji-cat-btn { background: #111; border: 1px solid #2d2d3d; color: #9ca3af; border-radius: 4px; padding: 3px 8px; font-size: 10px; cursor: pointer; user-select: none; }
+  .emoji-cat-btn:hover, .emoji-cat-btn.active { border-color: #a78bfa; color: #a78bfa; background: #1e1830; }
+  .emoji-grid-panel { display: grid; grid-template-columns: repeat(8,1fr); gap: 3px; max-height: 200px; overflow-y: auto; }
+  .emoji-item { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 5px; cursor: pointer; }
+  .emoji-item:hover { background: #2a2a3a; }
+  .emoji-item.active { background: #2a1a4a; outline: 1.5px solid #a78bfa; }
+  .emoji-item img { width: 24px; height: 24px; object-fit: contain; }
+  .emoji-none-btn { background: #111; border: 1px solid #2d2d3d; color: #9ca3af; border-radius: 5px; padding: 5px 10px; font-size: 11px; cursor: pointer; margin-bottom: 8px; width: 100%; text-align: center; }
+  .emoji-none-btn:hover { border-color: #a78bfa; color: #a78bfa; }
+  .emoji-credit { font-size: 9px; color: #444; margin-top: 8px; text-align: center; }
+  .pos-layer-row { display: flex; gap: 6px; }
+  .pos-layer-btn { flex: 1; background: #1a1a24; border: 1px solid #2d2d3d; color: #9ca3af; border-radius: 5px; padding: 4px 6px; font-size: 11px; cursor: pointer; text-align: center; user-select: none; }
+  .pos-layer-btn:hover, .pos-layer-btn.active { border-color: #a78bfa; color: #a78bfa; background: #1e1830; }
+  .pos-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+  .pos-btn { background: #1a1a24; border: 1px solid #2d2d3d; color: #9ca3af; border-radius: 5px; padding: 6px 4px; font-size: 10px; cursor: pointer; text-align: center; user-select: none; line-height: 1.3; }
+  .pos-btn:hover, .pos-btn.active { border-color: #a78bfa; color: #a78bfa; background: #1e1830; }
+  .pos-inline-row { display: flex; gap: 4px; margin-top: 4px; }
+  .pos-inline-btn { flex: 1; background: #1a1a24; border: 1px solid #2d2d3d; color: #9ca3af; border-radius: 5px; padding: 5px 4px; font-size: 10px; cursor: pointer; text-align: center; user-select: none; }
+  .pos-inline-btn:hover, .pos-inline-btn.active { border-color: #a78bfa; color: #a78bfa; background: #1e1830; }
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#111}::-webkit-scrollbar-thumb{background:#3a3a5a;border-radius:3px}
+</style>
+</head>
+<body>
+
+<h1>Jellyfin Banner Generator</h1>
+<p class="sub"> · 1536×1024px . PNG </p>
+
+<p class="sec">Library</p>
+<div class="library-grid" id="libGrid"></div>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <label>Custom title</label>
+    <input type="text" id="customTitle" placeholder="Overrides preset" />
+  </div>
+  <div class="ctrl-group">
+    <label>Subtitle / tagline</label>
+    <input type="text" id="subtitleText" placeholder="e.g. 4K · HDR · Dolby" />
+  </div>
+  <div class="ctrl-group">
+    <label>Font</label>
+    <div class="font-picker-wrap">
+      <div class="font-selected" id="fontSelected">Raleway</div>
+      <div class="font-dropdown" id="fontDropdown"></div>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <label>Text colour</label>
+    <div class="color-row">
+      <div class="color-swatch"><div class="color-swatch-inner" id="siTextColor" style="background:#ffffff"></div><input type="color" id="pcTextColor" value="#ffffff"/></div>
+      <input type="text" class="hex-input" id="hxTextColor" value="#ffffff" maxlength="7"/>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <label>Background colour</label>
+    <div class="color-row">
+      <div class="color-swatch"><div class="color-swatch-inner" id="siBgColor" style="background:#0d1117"></div><input type="color" id="pcBgColor" value="#0d1117"/></div>
+      <input type="text" class="hex-input" id="hxBgColor" value="#0d1117" maxlength="7"/>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <label>Accent colour</label>
+    <div class="color-row">
+      <div class="color-swatch"><div class="color-swatch-inner" id="siAccentColor" style="background:#1e3a5f"></div><input type="color" id="pcAccentColor" value="#1e3a5f"/></div>
+      <input type="text" class="hex-input" id="hxAccentColor" value="#1e3a5f" maxlength="7"/>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <label>Icon / bokeh colour</label>
+    <div class="color-row">
+      <div class="color-swatch"><div class="color-swatch-inner" id="siIconColor" style="background:#1a4a8a"></div><input type="color" id="pcIconColor" value="#1a4a8a"/></div>
+      <input type="text" class="hex-input" id="hxIconColor" value="#1a4a8a" maxlength="7"/>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <label>Emoji</label>
+    <div class="emoji-picker-wrap">
+      <div class="emoji-trigger" id="emojiTrigger">
+        <span class="emoji-trigger-label" id="emojiTriggerLabel">None</span>
+        <span style="font-size:11px;color:#6b7280">▾</span>
+      </div>
+      <div class="emoji-panel" id="emojiPanel">
+        <button class="emoji-none-btn" id="emojiNoneBtn">✕ No emoji</button>
+        <input type="text" class="emoji-search" id="emojiSearch" placeholder="Search emojis…"/>
+        <div class="emoji-cats" id="emojiCats"></div>
+        <div class="emoji-grid-panel" id="emojiGridPanel"></div>
+        <div class="emoji-credit">OpenMoji — CC BY-SA 4.0 · openmoji.org</div>
+      </div>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <label>Emoji size</label>
+    <div class="range-row"><input type="range" id="emojiSize" min="5" max="90" value="40"/><span class="range-val" id="emojiSizeVal">40%</span></div>
+  </div>
+  <div class="ctrl-group">
+    <label>Emoji opacity</label>
+    <div class="range-row"><input type="range" id="emojiOpacity" min="5" max="100" value="100"/><span class="range-val" id="emojiOpacityVal">100%</span></div>
+  </div>
+  <div class="ctrl-group" style="grid-column:span 3">
+    <label>Emoji position</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+      <div>
+        <div style="font-size:9px;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Layer</div>
+        <div class="pos-layer-row">
+          <div class="pos-layer-btn active" id="layerBehind">Behind text</div>
+          <div class="pos-layer-btn" id="layerInFront">In front</div>
+        </div>
+        <div style="font-size:9px;color:#6b7280;margin-top:8px;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Or inline beside title</div>
+        <div class="pos-inline-row">
+          <div class="pos-inline-btn" id="inlineBefore">◀ Before</div>
+          <div class="pos-inline-btn" id="inlineAfter">After ▶</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:9px;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Grid position</div>
+        <div class="pos-grid" id="posGrid">
+          <div class="pos-btn" data-pos="top-left">↖ Top<br>Left</div>
+          <div class="pos-btn" data-pos="top-center">↑ Top<br>Centre</div>
+          <div class="pos-btn" data-pos="top-right">↗ Top<br>Right</div>
+          <div class="pos-btn" data-pos="mid-left">← Mid<br>Left</div>
+          <div class="pos-btn active" data-pos="center">⊙ Centre</div>
+          <div class="pos-btn" data-pos="mid-right">→ Mid<br>Right</div>
+          <div class="pos-btn" data-pos="bot-left">↙ Bot<br>Left</div>
+          <div class="pos-btn" data-pos="bot-center">↓ Bot<br>Centre</div>
+          <div class="pos-btn" data-pos="bot-right">↘ Bot<br>Right</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <label>Text size (% of width)</label>
+    <div class="range-row"><input type="range" id="textScale" min="10" max="85" value="55"/><span class="range-val" id="textScaleVal">55%</span></div>
+  </div>
+  <div class="ctrl-group">
+    <label>Font weight</label>
+    <select id="fontWeight">
+      <option value="300">Light</option><option value="400">Regular</option>
+      <option value="700" selected>Bold</option><option value="900">Black</option>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <label>Text position</label>
+    <select id="textPos">
+      <option value="center">Center</option><option value="left">Left</option><option value="right">Right</option>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <label>Geometric pattern</label>
+    <select id="geoStyle">
+      <option value="none">None / flat</option><option value="hexgrid">Hex grid</option>
+      <option value="trianglemesh">Triangle mesh</option><option value="circuit">Circuit lines</option>
+      <option value="diamondgrid">Diamond grid</option><option value="dots">Dot matrix</option>
+      <option value="chevrons">Chevrons</option><option value="crosshatch">Crosshatch</option>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <label>Bokeh amount</label>
+    <div class="range-row"><input type="range" id="bokehAmount" min="0" max="28" value="0"/><span class="range-val" id="bokehAmountVal">0</span></div>
+  </div>
+  <div class="ctrl-group">
+    <label>Bokeh size</label>
+    <div class="range-row"><input type="range" id="bokehSize" min="20" max="400" value="120"/><span class="range-val" id="bokehSizeVal">120</span></div>
+  </div>
+  <div class="ctrl-group">
+    <label>Silhouette opacity</label>
+    <div class="range-row"><input type="range" id="iconOpacity" min="0" max="100" value="0"/><span class="range-val" id="iconOpacityVal">0%</span></div>
+  </div>
+</div>
+
+<p class="sec">Quick palettes</p>
+<div class="toggle-row" id="paletteRow"></div>
+
+<p class="sec">Options</p>
+<div class="toggle-row">
+  <div class="toggle-btn on" id="togSubtitle"  data-on="true">Subtitle: ON</div>
+  <div class="toggle-btn on" id="togAccentbar" data-on="true">Accent bar: ON</div>
+  <div class="toggle-btn on" id="togVignette"  data-on="true">Vignette: ON</div>
+  <div class="toggle-btn"    id="togGrain"     data-on="false">Grain: OFF</div>
+  <div class="toggle-btn on" id="togUnderline" data-on="true">Underline: ON</div>
+</div>
+
+<div class="canvas-wrap">
+  <canvas id="bannerCanvas" width="1536" height="1024"></canvas>
+</div>
+
+<div class="btn-row">
+  <button class="btn btn-primary" id="downloadBtn">⬇ Download PNG</button>
+  <button class="btn btn-all"     id="downloadAllBtn">⬇ Download All</button>
+  <button class="btn btn-ghost"   id="randomBtn">↻ Randomise</button>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('bannerCanvas');
+const ctx = canvas.getContext('2d');
+const W = 1536, H = 1024;
+let currentFont = 'Raleway';
+let selectedEmoji = null;
+let selectedLib = null;
+let emojiGridPos = 'center';
+let emojiLayer = 'behind';
+const toggles = {};
+
+// ── Download — uses blob to avoid sandbox restrictions ────────────────────────
+function downloadCanvas(filename) {
+  canvas.toBlob(blob => {
+    if (!blob) { alert('Download failed — try right-clicking the banner and saving the image directly.'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 500);
+  }, 'image/png');
+}
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const t = (document.getElementById('customTitle').value.trim() || (selectedLib ? selectedLib.label : 'banner'))
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  downloadCanvas(`jellyfin-banner-${t}.png`);
+});
+
+document.getElementById('downloadAllBtn').addEventListener('click', async () => {
+  const orig = selectedLib;
+  const origSub = document.getElementById('subtitleText').value;
+  const origEmoji = selectedEmoji;
+  for (const lib of libraries) {
+    selectedLib = lib;
+    document.getElementById('subtitleText').value = lib.sub;
+    applyPal(lib.pal);
+    selectedEmoji = lib.emoji ? { code: lib.emoji, label: lib.label } : null;
+    render();
+    await new Promise(r => setTimeout(r, 150));
+    await new Promise(resolve => {
+      canvas.toBlob(blob => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = `jellyfin-banner-${lib.id}.png`;
+          document.body.appendChild(a); a.click();
+          setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); resolve(); }, 300);
+        } else resolve();
+      }, 'image/png');
+    });
+    await new Promise(r => setTimeout(r, 200));
+  }
+  selectedLib = orig;
+  document.getElementById('subtitleText').value = origSub;
+  selectedEmoji = origEmoji;
+  applyPal(orig.pal);
+  render();
+});
+
+document.getElementById('randomBtn').addEventListener('click', () => {
+  applyPal(quickPalettes[Math.floor(Math.random() * quickPalettes.length)]);
+});
+
+// ── OpenMoji ──────────────────────────────────────────────────────────────────
+const EMOJI_CDN = 'https://cdn.jsdelivr.net/gh/hfg-gmuend/openmoji@15.1.0/color/svg/';
+const emojiCategories = {
+  'Media': [['1F3AC','Movies'],['1F4FA','TV'],['1F3B5','Music note'],['1F3B6','Notes'],['1F3B7','Sax'],['1F3B8','Guitar'],['1F3B9','Piano'],['1F3BA','Trumpet'],['1F3BB','Violin'],['1F941','Drum'],['1F3A4','Mic'],['1F3A7','Headphones'],['1F4FB','Radio'],['1F4BF','Disc'],['1F4FC','VHS'],['1F3A5','Camera'],['1F4F7','Photo'],['1F3A6','Cinema'],['1F39E','Film'],['1F4FD','Projector'],['1F4F9','Video cam'],['1F50A','Speaker'],['1F4E1','Satellite']],
+  'Nature': [['1F30D','Globe'],['1F31F','Glowing star'],['2B50','Star'],['1F320','Shooting star'],['1F319','Moon'],['2600','Sun'],['1F327','Rain'],['26A1','Lightning'],['2744','Snowflake'],['1F30A','Wave'],['1F332','Evergreen'],['1F333','Tree'],['1F334','Palm'],['1F337','Tulip'],['1F33B','Sunflower'],['1F30C','Milky Way'],['1F3D4','Mountain'],['1F30B','Volcano']],
+  'Objects': [['1F4DA','Books'],['1F4D6','Open book'],['1F4DD','Memo'],['270F','Pencil'],['1F4BB','Laptop'],['1F5A5','Desktop'],['1F4F1','Phone'],['1F527','Wrench'],['1F528','Hammer'],['1F512','Lock'],['1F4A1','Bulb'],['1F526','Torch'],['1F3C6','Trophy'],['1F947','Gold medal'],['1F3AF','Target'],['1F3B2','Dice'],['1F9E9','Puzzle'],['1F3AE','Game'],['1F579','Joystick'],['1F381','Gift'],['1F388','Balloon'],['1F389','Party']],
+  'People': [['1F466','Boy'],['1F467','Girl'],['1F468','Man'],['1F469','Woman'],['1F476','Baby'],['1F9D1','Person'],['1F46B','Couple'],['1F46A','Family'],['1F91D','Handshake'],['1F44F','Clap'],['1F44D','Thumbs up'],['1F3CB','Gym'],['1F3C3','Running'],['1F6B4','Cycling'],['1F3CA','Swimming'],['1F9D8','Meditation'],['1F46F','Dancers']],
+  'Food': [['1F355','Pizza'],['1F354','Burger'],['1F35F','Fries'],['1F32E','Taco'],['1F363','Sushi'],['1F369','Donut'],['1F382','Cake'],['1F36B','Chocolate'],['1F37F','Popcorn'],['1F37A','Beer'],['1F377','Wine'],['2615','Coffee'],['1F375','Tea'],['1F34E','Apple'],['1F347','Grapes'],['1F353','Strawberry']],
+  'Travel': [['2708','Plane'],['1F680','Rocket'],['1F6F8','UFO'],['1F6A2','Ship'],['1F697','Car'],['1F695','Taxi'],['1F68C','Bus'],['1F682','Train'],['1F6B2','Bike'],['1F3E0','House'],['1F3E2','Office'],['1F5FC','Tower'],['1F5FA','Map'],['1F9ED','Compass']],
+  'Symbols': [['2764','Heart'],['1F9E1','Orange heart'],['1F49B','Yellow heart'],['1F49A','Green heart'],['1F499','Blue heart'],['1F49C','Purple heart'],['1F5A4','Black heart'],['2728','Sparkles'],['1F4A5','Boom'],['1F525','Fire'],['1F4A7','Droplet'],['26A0','Warning'],['2705','Check'],['274C','Cross'],['2753','Question'],['1F4AF','100'],['1F4CC','Pin']],
+};
+const emojiImgCache = {};
+function emojiUrl(code){ return EMOJI_CDN + code + '.svg'; }
+function preloadEmoji(code){ if(emojiImgCache[code])return emojiImgCache[code];const img=new Image();img.crossOrigin='anonymous';img.src=emojiUrl(code);emojiImgCache[code]=img;return img; }
+// Preload all emojis with crossOrigin for canvas use
+Object.values(emojiCategories).flat().forEach(([code])=>preloadEmoji(code));
+
+let currentEmojiCat='Media', emojiSearchTerm='';
+const emojiCatsEl=document.getElementById('emojiCats');
+const emojiGridPanelEl=document.getElementById('emojiGridPanel');
+const emojiPanel=document.getElementById('emojiPanel');
+const emojiTrigger=document.getElementById('emojiTrigger');
+const emojiSearch=document.getElementById('emojiSearch');
+
+Object.keys(emojiCategories).forEach(cat=>{
+  const btn=document.createElement('div');btn.className='emoji-cat-btn'+(cat===currentEmojiCat?' active':'');btn.textContent=cat;
+  btn.onclick=()=>{currentEmojiCat=cat;emojiSearchTerm='';emojiSearch.value='';document.querySelectorAll('.emoji-cat-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderEmojiGrid();};
+  emojiCatsEl.appendChild(btn);
+});
+function renderEmojiGrid(){
+  emojiGridPanelEl.innerHTML='';
+  const term=emojiSearchTerm.toLowerCase();
+  const list=term?Object.values(emojiCategories).flat().filter(([,l])=>l.toLowerCase().includes(term)):emojiCategories[currentEmojiCat]||[];
+  list.forEach(([code,label])=>{
+    const item=document.createElement('div');item.className='emoji-item'+(selectedEmoji&&selectedEmoji.code===code?' active':'');item.title=label;
+    const im=document.createElement('img');im.src=emojiUrl(code);im.alt=label;im.width=24;im.height=24;item.appendChild(im);
+    item.onclick=()=>{selectedEmoji={code,label};updateEmojiTrigger();emojiPanel.classList.remove('open');document.querySelectorAll('.emoji-item').forEach(i=>i.classList.remove('active'));item.classList.add('active');render();};
+    emojiGridPanelEl.appendChild(item);
+  });
+}
+function updateEmojiTrigger(){
+  const lbl=document.getElementById('emojiTriggerLabel');
+  emojiTrigger.querySelectorAll('img').forEach(i=>i.remove());
+  if(selectedEmoji){const img=document.createElement('img');img.className='emoji-trigger-img';img.src=emojiUrl(selectedEmoji.code);img.alt=selectedEmoji.label;emojiTrigger.insertBefore(img,emojiTrigger.firstChild);lbl.textContent=selectedEmoji.label;}
+  else lbl.textContent='None';
+}
+emojiTrigger.onclick=e=>{e.stopPropagation();emojiPanel.classList.toggle('open');};
+document.addEventListener('click',()=>emojiPanel.classList.remove('open'));
+emojiPanel.addEventListener('click',e=>e.stopPropagation());
+emojiSearch.oninput=()=>{emojiSearchTerm=emojiSearch.value;renderEmojiGrid();};
+document.getElementById('emojiNoneBtn').onclick=()=>{selectedEmoji=null;updateEmojiTrigger();emojiPanel.classList.remove('open');render();};
+renderEmojiGrid();
+
+// ── Position controls ─────────────────────────────────────────────────────────
+document.querySelectorAll('.pos-btn').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.pos-inline-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.pos-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    emojiGridPos=btn.dataset.pos;
+    if(emojiLayer==='inline-before'||emojiLayer==='inline-after')emojiLayer='behind';
+    syncLayerBtns();render();
+  };
+});
+document.getElementById('layerBehind').onclick=()=>{emojiLayer='behind';document.querySelectorAll('.pos-inline-btn').forEach(b=>b.classList.remove('active'));syncLayerBtns();render();};
+document.getElementById('layerInFront').onclick=()=>{emojiLayer='front';document.querySelectorAll('.pos-inline-btn').forEach(b=>b.classList.remove('active'));syncLayerBtns();render();};
+document.getElementById('inlineBefore').onclick=()=>{emojiLayer='inline-before';document.querySelectorAll('.pos-inline-btn').forEach(b=>b.classList.remove('active'));document.getElementById('inlineBefore').classList.add('active');syncLayerBtns();render();};
+document.getElementById('inlineAfter').onclick=()=>{emojiLayer='inline-after';document.querySelectorAll('.pos-inline-btn').forEach(b=>b.classList.remove('active'));document.getElementById('inlineAfter').classList.add('active');syncLayerBtns();render();};
+function syncLayerBtns(){
+  document.getElementById('layerBehind').classList.toggle('active',emojiLayer==='behind');
+  document.getElementById('layerInFront').classList.toggle('active',emojiLayer==='front');
+}
+
+// ── Colour sync ───────────────────────────────────────────────────────────────
+const colorKeys=['TextColor','BgColor','AccentColor','IconColor'];
+function isValidHex(h){return /^#[0-9a-fA-F]{6}$/.test(h);}
+function syncColor(key,hex,src){
+  hex=hex.trim();if(!hex.startsWith('#'))hex='#'+hex;
+  const pc=document.getElementById('pc'+key),hx=document.getElementById('hx'+key),si=document.getElementById('si'+key);
+  if(isValidHex(hex)){hx.classList.remove('invalid');if(src!=='picker')pc.value=hex;if(src!=='hex')hx.value=hex;si.style.background=hex;render();}
+  else hx.classList.add('invalid');
+}
+function getColor(key){return document.getElementById('pc'+key).value;}
+function setColorAll(key,hex){document.getElementById('pc'+key).value=hex;document.getElementById('hx'+key).value=hex;document.getElementById('si'+key).style.background=hex;}
+colorKeys.forEach(key=>{
+  document.getElementById('pc'+key).addEventListener('input',()=>syncColor(key,document.getElementById('pc'+key).value,'picker'));
+  const hx=document.getElementById('hx'+key);
+  hx.addEventListener('input',()=>syncColor(key,hx.value,'hex'));
+  hx.addEventListener('paste',()=>setTimeout(()=>syncColor(key,hx.value,'hex'),10));
+});
+
+// ── Fonts ─────────────────────────────────────────────────────────────────────
+const fontList=['Raleway','Cinzel','Bebas Neue','Oswald','Montserrat','Playfair Display','Exo 2','Orbitron','Ubuntu','Lato','Nunito','Roboto Condensed','Anton','Chakra Petch','Rajdhani','Audiowide','Righteous','Oxanium','Russo One','Barlow Condensed','Josefin Sans','Poiret One','Comfortaa','Quicksand','Jura','Syncopate','Teko','Saira Condensed'];
+fontList.forEach(f=>{const l=document.createElement('link');l.rel='stylesheet';l.href=`https://fonts.googleapis.com/css2?family=${encodeURIComponent(f)}:wght@300;400;700;900&display=swap`;document.head.appendChild(l);});
+const fontSelected=document.getElementById('fontSelected'),fontDropdown=document.getElementById('fontDropdown');
+fontSelected.style.fontFamily=`'Raleway',sans-serif`;
+fontList.forEach(f=>{const opt=document.createElement('div');opt.className='font-option'+(f===currentFont?' active':'');opt.textContent=f;opt.style.fontFamily=`'${f}',sans-serif`;opt.onclick=()=>{currentFont=f;fontSelected.textContent=f;fontSelected.style.fontFamily=`'${f}',sans-serif`;document.querySelectorAll('.font-option').forEach(o=>o.classList.remove('active'));opt.classList.add('active');fontDropdown.classList.remove('open');setTimeout(render,120);};fontDropdown.appendChild(opt);});
+fontSelected.onclick=e=>{e.stopPropagation();fontDropdown.classList.toggle('open');};
+document.addEventListener('click',()=>fontDropdown.classList.remove('open'));
+fontDropdown.addEventListener('click',e=>e.stopPropagation());
+
+// ── Libraries ─────────────────────────────────────────────────────────────────
+const libraries=[
+  {id:'movies',  label:'Movies',      icon:'🎬',sub:'4K · HDR · Dolby Atmos',         pal:{bg:'#050c18',accent:'#1e3a5f',icon:'#0d2050',text:'#ffffff'},emoji:'1F3AC'},
+  {id:'tvshows', label:'TV Shows',    icon:'📺',sub:'Series · Seasons · Episodes',    pal:{bg:'#030f10',accent:'#0f5a3a',icon:'#062b20',text:'#ffffff'},emoji:'1F4FA'},
+  {id:'music',   label:'Music',       icon:'🎵',sub:'Albums · Artists · Playlists',   pal:{bg:'#08031a',accent:'#6a10cc',icon:'#2a0660',text:'#ffffff'},emoji:'1F3B5'},
+  {id:'musicvid',label:'Music Videos',icon:'🎞',sub:'Official videos · Live sets',    pal:{bg:'#100508',accent:'#8a1060',icon:'#3a0530',text:'#ffffff'},emoji:'1F3AC'},
+  {id:'anime',   label:'Anime',       icon:'⛩', sub:'Subbed & Dubbed',                pal:{bg:'#150508',accent:'#aa1a25',icon:'#3d0810',text:'#ffffff'},emoji:null},
+  {id:'books',   label:'Books',       icon:'📚',sub:'eBooks · Audiobooks',            pal:{bg:'#0a0805',accent:'#a06010',icon:'#3d2505',text:'#ffffff'},emoji:'1F4DA'},
+  {id:'kids',    label:'Kids',        icon:'🧸',sub:'Family · Animation',             pal:{bg:'#04100a',accent:'#18aa50',icon:'#083020',text:'#ffffff'},emoji:'1F388'},
+  {id:'docs',    label:'Documentary', icon:'🌍',sub:'Real stories · Real world',      pal:{bg:'#080808',accent:'#505050',icon:'#202020',text:'#ffffff'},emoji:'1F30D'},
+  {id:'uhd',     label:'4K / UHD',   icon:'🔮',sub:'Ultra HD · HDR10 · Dolby Vision',pal:{bg:'#050510',accent:'#5030cc',icon:'#15083a',text:'#ffffff'},emoji:null},
+  {id:'sports',  label:'Sports',      icon:'⚽',sub:'Live · Highlights · Replays',    pal:{bg:'#080f02',accent:'#50aa00',icon:'#1a3a00',text:'#ffffff'},emoji:'1F3C6'},
+  {id:'standup', label:'Stand-up',    icon:'🎤',sub:'Comedy specials',                pal:{bg:'#100a02',accent:'#cc7010',icon:'#3a2003',text:'#ffffff'},emoji:'1F3A4'},
+  {id:'homevid', label:'Home Videos', icon:'📷',sub:'Memories & moments',            pal:{bg:'#0a0518',accent:'#5010aa',icon:'#200838',text:'#ffffff'},emoji:'1F4F7'},
+  {id:'custom',  label:'Custom',      icon:'✦', sub:'',                               pal:{bg:'#0a0a0a',accent:'#444444',icon:'#222222',text:'#ffffff'},emoji:null},
+];
+const quickPalettes=[
+  {label:'🎬 Movies',bg:'#050c18',accent:'#1e3a5f',icon:'#0d2050',text:'#ffffff'},
+  {label:'📺 TV',    bg:'#030f10',accent:'#0f5a3a',icon:'#062b20',text:'#ffffff'},
+  {label:'🎵 Music', bg:'#08031a',accent:'#6a10cc',icon:'#2a0660',text:'#ffffff'},
+  {label:'⛩ Anime', bg:'#150508',accent:'#aa1a25',icon:'#3d0810',text:'#ffffff'},
+  {label:'📚 Books', bg:'#0a0805',accent:'#a06010',icon:'#3d2505',text:'#ffffff'},
+  {label:'⚽ Sports',bg:'#080f02',accent:'#50aa00',icon:'#1a3a00',text:'#ffffff'},
+  {label:'🔮 UHD',   bg:'#050510',accent:'#5030cc',icon:'#15083a',text:'#ffffff'},
+  {label:'Mono',     bg:'#080808',accent:'#505050',icon:'#202020',text:'#ffffff'},
+];
+function applyPal(p){setColorAll('TextColor',p.text);setColorAll('BgColor',p.bg);setColorAll('AccentColor',p.accent);setColorAll('IconColor',p.icon);render();}
+quickPalettes.forEach(p=>{const btn=document.createElement('div');btn.className='toggle-btn';btn.textContent=p.label;btn.onclick=()=>applyPal(p);document.getElementById('paletteRow').appendChild(btn);});
+
+selectedLib=libraries[0];
+libraries.forEach(lib=>{
+  const btn=document.createElement('div');btn.className='lib-btn'+(lib.id===selectedLib.id?' active':'');
+  btn.innerHTML=`<span class="lib-icon-sm">${lib.icon}</span>${lib.label}`;
+  btn.onclick=()=>{document.querySelectorAll('.lib-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');selectedLib=lib;if(!document.getElementById('customTitle').value)document.getElementById('subtitleText').value=lib.sub;selectedEmoji=lib.emoji?{code:lib.emoji,label:lib.label}:null;updateEmojiTrigger();renderEmojiGrid();applyPal(lib.pal);};
+  document.getElementById('libGrid').appendChild(btn);
+});
+document.getElementById('subtitleText').value=libraries[0].sub;
+selectedEmoji={code:'1F3AC',label:'Movies'};updateEmojiTrigger();
+
+document.querySelectorAll('.toggle-btn[id^="tog"]').forEach(btn=>{
+  const key=btn.id.replace('tog','').toLowerCase();toggles[key]=btn.dataset.on==='true';
+  btn.onclick=()=>{toggles[key]=!toggles[key];btn.dataset.on=toggles[key];btn.classList.toggle('on',toggles[key]);const lbl=btn.textContent.replace(/: ON|: OFF/,'');btn.textContent=lbl+(toggles[key]?': ON':': OFF');render();};
+});
+const rangeDisplays={textScale:v=>v+'%',bokehAmount:v=>v,bokehSize:v=>v,iconOpacity:v=>v+'%',emojiSize:v=>v+'%',emojiOpacity:v=>v+'%'};
+Object.keys(rangeDisplays).forEach(id=>{const el=document.getElementById(id),disp=document.getElementById(id+'Val');if(el)el.oninput=()=>{if(disp)disp.textContent=rangeDisplays[id](el.value);render();};});
+['fontWeight','textPos','geoStyle'].forEach(id=>document.getElementById(id).addEventListener('change',render));
+['customTitle','subtitleText'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function hexToRgb(h){return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
+function seededRng(seed){let s=seed%2147483647;if(s<=0)s+=2147483646;return()=>{s=s*16807%2147483647;return(s-1)/2147483646;};}
+function rr(x,y,w,h,r){ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
+function fitFontSize(text,fw,targetW){const fs=`'${currentFont}','Segoe UI',system-ui,sans-serif`;let lo=40,hi=900,best=40;for(let i=0;i<24;i++){const mid=(lo+hi)/2;ctx.font=`${fw} ${mid}px ${fs}`;if(ctx.measureText(text).width<=targetW){best=mid;lo=mid;}else hi=mid;if(hi-lo<0.5)break;}return best;}
+
+// ── Geo patterns ──────────────────────────────────────────────────────────────
+function drawHexGrid(ac,al){const[r,g,b]=ac,R=55,rw=R*Math.sqrt(3),rh=R*1.5;ctx.strokeStyle=`rgba(${r},${g},${b},${al})`;ctx.lineWidth=1;for(let row=-1;row<H/rh+2;row++)for(let col=-1;col<W/rw+2;col++){const cx=col*rw+(row%2===0?0:rw/2),cy=row*rh;ctx.beginPath();for(let i=0;i<6;i++){const a=Math.PI/180*(60*i-30);i===0?ctx.moveTo(cx+R*Math.cos(a),cy+R*Math.sin(a)):ctx.lineTo(cx+R*Math.cos(a),cy+R*Math.sin(a));}ctx.closePath();ctx.stroke();}}
+function drawTriMesh(ac,al,rng){const[r,g,b]=ac,cols=18,rows=7,cw=W/cols,ch=H/rows,pts=[];for(let row=0;row<=rows;row++){pts[row]=[];for(let col=0;col<=cols;col++){pts[row][col]=[col*cw+(row>0&&row<rows?(rng()-0.5)*cw*0.5:0),row*ch+(col>0&&col<cols?(rng()-0.5)*ch*0.5:0)];}}ctx.lineWidth=0.8;for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){const tl=pts[row][col],tr2=pts[row][col+1],bl=pts[row+1][col],br=pts[row+1][col+1];const s1=al*(0.4+rng()*0.6),s2=al*(0.4+rng()*0.6);ctx.fillStyle=`rgba(${r},${g},${b},${s1})`;ctx.strokeStyle=`rgba(${r},${g},${b},${s1*0.5})`;ctx.beginPath();ctx.moveTo(...tl);ctx.lineTo(...tr2);ctx.lineTo(...bl);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle=`rgba(${r},${g},${b},${s2})`;ctx.strokeStyle=`rgba(${r},${g},${b},${s2*0.5})`;ctx.beginPath();ctx.moveTo(...tr2);ctx.lineTo(...br);ctx.lineTo(...bl);ctx.closePath();ctx.fill();ctx.stroke();}}
+function drawCircuit(ac,al,rng){const[r,g,b]=ac;ctx.strokeStyle=`rgba(${r},${g},${b},${al})`;ctx.lineWidth=1.5;for(let i=0;i<28;i++){const nx=rng()*W,ny=rng()*H,l1=60+rng()*140,l2=30+rng()*90,dir=Math.floor(rng()*4),dx=[1,0,-1,0][dir],dy=[0,1,0,-1][dir];ctx.beginPath();ctx.moveTo(nx,ny);ctx.lineTo(nx+dx*l1,ny+dy*l1);const t=rng()>.5?1:-1;ctx.lineTo(nx+dx*l1+dy*t*l2,ny+dy*l1-dx*t*l2);ctx.stroke();ctx.fillStyle=`rgba(${r},${g},${b},${al*1.8})`;ctx.beginPath();ctx.arc(nx,ny,3.5,0,Math.PI*2);ctx.fill();}}
+function drawDiamondGrid(ac,al){const[r,g,b]=ac,sz=66;ctx.strokeStyle=`rgba(${r},${g},${b},${al})`;ctx.lineWidth=1;for(let y=-sz;y<H+sz;y+=sz)for(let x=-sz;x<W+sz;x+=sz){ctx.beginPath();ctx.moveTo(x+sz/2,y);ctx.lineTo(x+sz,y+sz/2);ctx.lineTo(x+sz/2,y+sz);ctx.lineTo(x,y+sz/2);ctx.closePath();ctx.stroke();}}
+function drawDots(ac,al){const[r,g,b]=ac,sp=42;for(let y=sp/2;y<H;y+=sp)for(let x=sp/2;x<W;x+=sp){ctx.fillStyle=`rgba(${r},${g},${b},${al*Math.max(0,1-Math.sqrt((x-W/2)**2+(y-H/2)**2)/(W*0.55))*1.4})`;ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fill();}}
+function drawChevrons(ac,al){const[r,g,b]=ac;ctx.strokeStyle=`rgba(${r},${g},${b},${al})`;ctx.lineWidth=1.5;for(let x=-90;x<W+180;x+=90)for(let y=-60;y<H+120;y+=120){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+45,y+30);ctx.lineTo(x+90,y);ctx.stroke();}}
+function drawCrosshatch(ac,al){const[r,g,b]=ac;ctx.strokeStyle=`rgba(${r},${g},${b},${al})`;ctx.lineWidth=0.8;for(let i=-H;i<W+H;i+=60){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i-H,H);ctx.stroke();}}
+function drawGeo(name,ac,al,rng){ctx.save();if(name==='hexgrid')drawHexGrid(ac,al);else if(name==='trianglemesh')drawTriMesh(ac,al,rng);else if(name==='circuit')drawCircuit(ac,al,rng);else if(name==='diamondgrid')drawDiamondGrid(ac,al);else if(name==='dots')drawDots(ac,al);else if(name==='chevrons')drawChevrons(ac,al);else if(name==='crosshatch')drawCrosshatch(ac,al);ctx.restore();}
+
+// ── Silhouette icons ──────────────────────────────────────────────────────────
+function drawLibIcon(lib,col,alpha){
+  if(alpha<=0)return;
+  ctx.save();ctx.fillStyle=col;ctx.strokeStyle=col;ctx.globalAlpha=alpha;
+  const s=1.5;ctx.scale(s,s);const W2=W/s,H2=H/s;
+  if(lib.id==='movies'){ctx.beginPath();rr(130,H2/2-88,230,175,14);ctx.fill();ctx.beginPath();ctx.arc(255,H2/2,52,0,Math.PI*2);ctx.fill();ctx.globalAlpha=alpha*0.5;ctx.beginPath();ctx.arc(255,H2/2,32,0,Math.PI*2);ctx.fill();ctx.globalAlpha=alpha;ctx.lineWidth=16;ctx.lineCap='round';[[-50],[50],[0]].forEach(([dx])=>{ctx.beginPath();ctx.moveTo(245,H2/2+88);ctx.lineTo(245+dx,H2/2+148);ctx.stroke();});ctx.beginPath();rr(590,H2/2-88,330,235,12);ctx.fill();ctx.globalAlpha=alpha*0.45;for(let i=0;i<6;i++){ctx.fillStyle=i%2===0?col:'rgba(0,0,0,0.35)';ctx.beginPath();ctx.rect(590+i*55,H2/2-88,55,48);ctx.fill();}ctx.globalAlpha=alpha*0.3;ctx.fillStyle=col;[H2/2-28,H2/2+2,H2/2+32,H2/2+59].forEach(y=>{ctx.beginPath();rr(608,y,295,8,2);ctx.fill();});}
+  else if(lib.id==='tvshows'||lib.id==='musicvid'){const cy=H2/2;ctx.beginPath();rr(70,cy-148,420,295,28);ctx.fill();ctx.globalAlpha=alpha*0.3;ctx.beginPath();rr(102,cy-116,356,225,10);ctx.fill();ctx.globalAlpha=alpha;ctx.lineWidth=14;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(198,cy-148);ctx.lineTo(138,cy-215);ctx.stroke();ctx.beginPath();ctx.moveTo(278,cy-148);ctx.lineTo(338,cy-215);ctx.stroke();ctx.beginPath();ctx.moveTo(278,cy+147);ctx.lineTo(278,cy+87);ctx.stroke();ctx.beginPath();rr(198,cy+140,160,22,8);ctx.fill();ctx.globalAlpha=alpha*0.9;ctx.beginPath();ctx.ellipse(900,cy,170,130,-0.25,0,Math.PI*2);ctx.fill();ctx.globalAlpha=alpha*0.35;ctx.beginPath();ctx.ellipse(900,cy,110,90,-0.25,0,Math.PI*2);ctx.fill();ctx.globalAlpha=alpha;ctx.lineWidth=18;ctx.beginPath();ctx.moveTo(828,cy+60);ctx.lineTo(795,cy+137);ctx.stroke();ctx.beginPath();rr(770,cy+130,100,22,6);ctx.fill();}
+  else if(lib.id==='music'){const cy=H2/2;ctx.lineWidth=5;[cy-95,cy-58,cy-21,cy+16,cy+53].forEach(y=>{ctx.beginPath();ctx.moveTo(55,y);ctx.lineTo(W2-55,y);ctx.stroke();});ctx.lineWidth=16;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();ctx.moveTo(185,cy+118);ctx.bezierCurveTo(125,cy+88,105,cy+28,145,cy-12);ctx.bezierCurveTo(182,cy-50,232,cy-38,232,cy+7);ctx.bezierCurveTo(232,cy+50,172,cy+68,152,cy+38);ctx.bezierCurveTo(132,cy+8,162,cy-32,202,cy-20);ctx.bezierCurveTo(240,cy-10,238,cy+40,218,cy+80);ctx.bezierCurveTo(198,cy+118,185,cy+145,192,cy+160);ctx.stroke();[{x:360,y:cy-12,e:1},{x:500,y:cy+18},{x:650,y:cy-32,e:1},{x:790,y:cy+8},{x:910,y:cy-18,e:1},{x:1050,y:cy+2},{x:380,y:cy+78},{x:560,y:cy+95,e:1},{x:720,y:cy+68},{x:870,y:cy+92,e:1}].forEach(n=>{ctx.fillStyle=col;ctx.beginPath();ctx.ellipse(n.x,n.y,18,13,-0.4,0,Math.PI*2);ctx.fill();ctx.fillRect(n.x+16,n.y-68,5,68);if(n.e){ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(n.x+20,n.y-68);ctx.quadraticCurveTo(n.x+62,n.y-52,n.x+42,n.y-32);ctx.stroke();}});}
+  ctx.globalAlpha=1;ctx.restore();
+}
+
+// ── Emoji draw ────────────────────────────────────────────────────────────────
+function getEmojiXY(pos,sz){
+  const pad=sz*0.05;
+  const col=pos.includes('left')?pad:pos.includes('right')?W-sz-pad:(W-sz)/2;
+  const row=pos.includes('top')?pad:pos.includes('bot')?H-sz-pad:(H-sz)/2;
+  return[col,row];
+}
+function drawEmoji(opacity,sizePct,titleX,titleY,titleW,fontSize,textAlign){
+  if(!selectedEmoji)return;
+  const img=preloadEmoji(selectedEmoji.code);
+  if(!img.complete||img.naturalWidth===0){img.onload=()=>render();return;}
+  const isInline=emojiLayer==='inline-before'||emojiLayer==='inline-after';
+  const sz=isInline?fontSize*1.1:H*(sizePct/100);
+  ctx.save();ctx.globalAlpha=opacity/100;
+  if(isInline){
+    const gap=fontSize*0.15;
+    const ey=titleY-sz*0.85;
+    let ex;
+    if(emojiLayer==='inline-before'){
+      if(textAlign==='center')ex=titleX-titleW/2-sz-gap;
+      else if(textAlign==='left')ex=titleX-sz-gap;
+      else ex=titleX-titleW-sz-gap;
+    }else{
+      if(textAlign==='center')ex=titleX+titleW/2+gap;
+      else if(textAlign==='left')ex=titleX+titleW+gap;
+      else ex=titleX+gap;
+    }
+    ctx.drawImage(img,ex,ey,sz,sz);
+  }else{
+    const[ex,ey]=getEmojiXY(emojiGridPos,sz);
+    ctx.drawImage(img,ex,ey,sz,sz);
+  }
+  ctx.restore();
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+function render(){
+  const bgHex=getColor('BgColor'),accentHex=getColor('AccentColor'),iconHex=getColor('IconColor'),textCol=getColor('TextColor');
+  const textScalePct=parseInt(document.getElementById('textScale').value);
+  const fontWeight=document.getElementById('fontWeight').value;
+  const textPos=document.getElementById('textPos').value;
+  const geoStyle=document.getElementById('geoStyle').value;
+  const bokehAmt=parseInt(document.getElementById('bokehAmount').value);
+  const bokehSz=parseInt(document.getElementById('bokehSize').value);
+  const iconOp=parseInt(document.getElementById('iconOpacity').value)/100;
+  const emojiSz=parseInt(document.getElementById('emojiSize').value);
+  const emojiOp=parseInt(document.getElementById('emojiOpacity').value);
+  const customT=document.getElementById('customTitle').value.trim();
+  const subtitle=document.getElementById('subtitleText').value.trim();
+  const title=customT||(selectedLib?selectedLib.label:'');
+  const acRgb=hexToRgb(accentHex);
+  const[ar,ag,ab]=acRgb;
+  const[tr,tg,tb]=hexToRgb(textCol);
+  const[ir,ig,ib]=hexToRgb(iconHex);
+  const seed=(selectedLib?selectedLib.id:'x').split('').reduce((a,c)=>a+c.charCodeAt(0),7);
+  const rng=seededRng(seed);
+
+  ctx.clearRect(0,0,W,H);
+
+  // BG
+  const[br,bg2,bb]=hexToRgb(bgHex);
+  const bgGrad=ctx.createRadialGradient(W*0.42,H*0.45,0,W*0.42,H*0.45,W*0.75);
+  bgGrad.addColorStop(0,`rgb(${Math.min(255,br+35)},${Math.min(255,bg2+35)},${Math.min(255,bb+35)})`);
+  bgGrad.addColorStop(1,bgHex);
+  ctx.fillStyle=bgGrad;ctx.fillRect(0,0,W,H);
+  const tg2=ctx.createLinearGradient(0,0,0,H);tg2.addColorStop(0,'rgba(255,255,255,0.03)');tg2.addColorStop(1,'rgba(0,0,0,0.14)');ctx.fillStyle=tg2;ctx.fillRect(0,0,W,H);
+
+  for(let i=0;i<bokehAmt;i++){const bx=rng()*W,by=rng()*H,br2=bokehSz*(0.4+rng()*0.9),bal=0.05+rng()*0.18;const bg3=ctx.createRadialGradient(bx,by,0,bx,by,br2);bg3.addColorStop(0,`rgba(${ir},${ig},${ib},${bal})`);bg3.addColorStop(0.5,`rgba(${ir},${ig},${ib},${bal*0.25})`);bg3.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=bg3;ctx.fillRect(0,0,W,H);}
+
+  if(geoStyle!=='none')drawGeo(geoStyle,acRgb,0.13,rng);
+  if(toggles['accentbar']){const glow=ctx.createRadialGradient(0,H/2,0,0,H/2,W*0.44);glow.addColorStop(0,`rgba(${ar},${ag},${ab},0.14)`);glow.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=glow;ctx.fillRect(0,0,W,H);ctx.fillStyle=`rgba(${ar},${ag},${ab},0.9)`;ctx.fillRect(0,Math.round(H*0.17),6,Math.round(H*0.66));}
+  if(selectedLib)drawLibIcon(selectedLib,iconHex,iconOp);
+
+  // Text metrics
+  const fs=`'${currentFont}','Segoe UI',system-ui,sans-serif`;
+  const fontSize=fitFontSize(title,fontWeight,W*(textScalePct/100));
+  ctx.font=`${fontWeight} ${fontSize}px ${fs}`;
+  const titleW=ctx.measureText(title).width;
+  const hasSub=toggles['subtitle']&&subtitle;
+  const titleY=H/2+(hasSub?fontSize*0.08:fontSize*0.28);
+  let titleX,textAlign;
+  if(textPos==='center'){textAlign='center';titleX=W/2;}
+  else if(textPos==='left'){textAlign='left';titleX=60;}
+  else{textAlign='right';titleX=W-60;}
+
+  // Behind emoji
+  if(emojiLayer==='behind'||emojiLayer==='inline-before'||emojiLayer==='inline-after')
+    drawEmoji(emojiOp,emojiSz,titleX,titleY,titleW,fontSize,textAlign);
+
+  if(toggles['vignette']){const v=ctx.createRadialGradient(W/2,H/2,H*0.18,W/2,H/2,W*0.72);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,0.72)');ctx.fillStyle=v;ctx.fillRect(0,0,W,H);}
+
+  // Title text
+  ctx.font=`${fontWeight} ${fontSize}px ${fs}`;
+  ctx.textAlign=textAlign;ctx.textBaseline='alphabetic';ctx.fillStyle=textCol;ctx.fillText(title,titleX,titleY);
+
+  if(toggles['underline']){let ulX=titleX;if(textAlign==='center')ulX=titleX-titleW/2;else if(textAlign==='right')ulX=titleX-titleW;const ulH=Math.max(3,Math.round(fontSize*0.025));ctx.fillStyle=`rgba(${ar},${ag},${ab},0.75)`;ctx.fillRect(ulX,titleY+ulH+4,Math.min(titleW,W-80),ulH);}
+  if(hasSub){const subSz=Math.round(fontSize*0.28);ctx.font=`300 ${subSz}px ${fs}`;ctx.fillStyle=`rgba(${tr},${tg},${tb},0.52)`;ctx.textAlign=textAlign;ctx.textBaseline='alphabetic';ctx.fillText(subtitle,titleX,titleY+fontSize*0.38+subSz*0.5);}
+
+  // Front emoji
+  if(emojiLayer==='front')drawEmoji(emojiOp,emojiSz,titleX,titleY,titleW,fontSize,textAlign);
+
+  if(toggles['grain']){const id=ctx.getImageData(0,0,W,H);for(let i=0;i<id.data.length;i+=4){const n=(Math.random()-0.5)*22;id.data[i]=Math.min(255,Math.max(0,id.data[i]+n));id.data[i+1]=Math.min(255,Math.max(0,id.data[i+1]+n));id.data[i+2]=Math.min(255,Math.max(0,id.data[i+2]+n));}ctx.putImageData(id,0,0);}
+}
+
+setTimeout(render,400);
+</script>
+</body>
+</html>
