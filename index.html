@@ -25,7 +25,7 @@
   .hex-input:focus { outline: none; border-color: #a78bfa; }
   .hex-input.invalid { border-color: #cc3333; }
   .range-row { display: flex; align-items: center; gap: 8px; }
-  .range-val { font-size: 11px; color: #a78bfa; font-family: monospace; min-width: 38px; text-align: right; }
+  .range-val { font-size: 11px; color: #a78bfa; font-family: monospace; min-width: 42px; text-align: right; }
   .toggle-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 12px; }
   .toggle-btn { background: #1a1a24; border: 1px solid #2d2d3d; color: #9ca3af; border-radius: 5px; padding: 4px 11px; font-size: 11px; cursor: pointer; transition: all 0.12s; user-select: none; }
   .toggle-btn.on { background: #1e1830; border-color: #a78bfa; color: #a78bfa; }
@@ -128,6 +128,8 @@
       <input type="text" class="hex-input" id="hxIconColor" value="#1a4a8a" maxlength="7"/>
     </div>
   </div>
+
+  <!-- Emoji -->
   <div class="ctrl-group">
     <label>Emoji</label>
     <div class="emoji-picker-wrap">
@@ -152,6 +154,8 @@
     <label>Emoji opacity</label>
     <div class="range-row"><input type="range" id="emojiOpacity" min="5" max="100" value="100"/><span class="range-val" id="emojiOpacityVal">100%</span></div>
   </div>
+
+  <!-- Emoji position -->
   <div class="ctrl-group" style="grid-column:span 3">
     <label>Emoji position</label>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
@@ -169,7 +173,7 @@
       </div>
       <div>
         <div style="font-size:9px;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Grid position</div>
-        <div class="pos-grid" id="posGrid">
+        <div class="pos-grid">
           <div class="pos-btn" data-pos="top-left">↖ Top<br>Left</div>
           <div class="pos-btn" data-pos="top-center">↑ Top<br>Centre</div>
           <div class="pos-btn" data-pos="top-right">↗ Top<br>Right</div>
@@ -183,10 +187,21 @@
       </div>
     </div>
   </div>
+
+  <!-- Title & subtitle sizing — clearly separated -->
   <div class="ctrl-group">
-    <label>Text size (% of width)</label>
+    <label>Title size (% of width)</label>
     <div class="range-row"><input type="range" id="textScale" min="10" max="85" value="55"/><span class="range-val" id="textScaleVal">55%</span></div>
   </div>
+  <div class="ctrl-group">
+    <label>Subtitle size (px)</label>
+    <div class="range-row"><input type="range" id="subtitleSize" min="16" max="120" value="42"/><span class="range-val" id="subtitleSizeVal">42px</span></div>
+  </div>
+  <div class="ctrl-group">
+    <label>Subtitle gap</label>
+    <div class="range-row"><input type="range" id="subtitleGap" min="0" max="120" value="32"/><span class="range-val" id="subtitleGapVal">32px</span></div>
+  </div>
+
   <div class="ctrl-group">
     <label>Font weight</label>
     <select id="fontWeight">
@@ -246,7 +261,6 @@
 </div>
 
 <script>
-// ── State ─────────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('bannerCanvas');
 const ctx = canvas.getContext('2d');
 const W = 1536, H = 1024;
@@ -257,76 +271,48 @@ let emojiGridPos = 'center';
 let emojiLayer = 'behind';
 const toggles = {};
 
-// ── Download — uses blob to avoid sandbox restrictions ────────────────────────
+// ── Download ──────────────────────────────────────────────────────────────────
 function downloadCanvas(filename) {
   canvas.toBlob(blob => {
-    if (!blob) { alert('Download failed — try right-clicking the banner and saving the image directly.'); return; }
+    if (!blob) { alert('Download failed — try right-clicking the banner and saving directly.'); return; }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 500);
   }, 'image/png');
 }
-
 document.getElementById('downloadBtn').addEventListener('click', () => {
-  const t = (document.getElementById('customTitle').value.trim() || (selectedLib ? selectedLib.label : 'banner'))
-    .toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const t = (document.getElementById('customTitle').value.trim() || (selectedLib ? selectedLib.label : 'banner')).toLowerCase().replace(/[^a-z0-9]+/g,'-');
   downloadCanvas(`jellyfin-banner-${t}.png`);
 });
-
 document.getElementById('downloadAllBtn').addEventListener('click', async () => {
-  const orig = selectedLib;
-  const origSub = document.getElementById('subtitleText').value;
-  const origEmoji = selectedEmoji;
+  const orig = selectedLib, origSub = document.getElementById('subtitleText').value, origEmoji = selectedEmoji;
   for (const lib of libraries) {
-    selectedLib = lib;
-    document.getElementById('subtitleText').value = lib.sub;
-    applyPal(lib.pal);
-    selectedEmoji = lib.emoji ? { code: lib.emoji, label: lib.label } : null;
-    render();
-    await new Promise(r => setTimeout(r, 150));
-    await new Promise(resolve => {
-      canvas.toBlob(blob => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url; a.download = `jellyfin-banner-${lib.id}.png`;
-          document.body.appendChild(a); a.click();
-          setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); resolve(); }, 300);
-        } else resolve();
-      }, 'image/png');
-    });
+    selectedLib = lib; document.getElementById('subtitleText').value = lib.sub;
+    applyPal(lib.pal); selectedEmoji = lib.emoji ? {code:lib.emoji,label:lib.label} : null;
+    render(); await new Promise(r => setTimeout(r, 150));
+    await new Promise(resolve => { canvas.toBlob(blob => { if(blob){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`jellyfin-banner-${lib.id}.png`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(url);document.body.removeChild(a);resolve();},300);}else resolve();}, 'image/png'); });
     await new Promise(r => setTimeout(r, 200));
   }
-  selectedLib = orig;
-  document.getElementById('subtitleText').value = origSub;
-  selectedEmoji = origEmoji;
-  applyPal(orig.pal);
-  render();
+  selectedLib = orig; document.getElementById('subtitleText').value = origSub; selectedEmoji = origEmoji; applyPal(orig.pal); render();
 });
-
-document.getElementById('randomBtn').addEventListener('click', () => {
-  applyPal(quickPalettes[Math.floor(Math.random() * quickPalettes.length)]);
-});
+document.getElementById('randomBtn').addEventListener('click', () => applyPal(quickPalettes[Math.floor(Math.random()*quickPalettes.length)]));
 
 // ── OpenMoji ──────────────────────────────────────────────────────────────────
 const EMOJI_CDN = 'https://cdn.jsdelivr.net/gh/hfg-gmuend/openmoji@15.1.0/color/svg/';
 const emojiCategories = {
-  'Media': [['1F3AC','Movies'],['1F4FA','TV'],['1F3B5','Music note'],['1F3B6','Notes'],['1F3B7','Sax'],['1F3B8','Guitar'],['1F3B9','Piano'],['1F3BA','Trumpet'],['1F3BB','Violin'],['1F941','Drum'],['1F3A4','Mic'],['1F3A7','Headphones'],['1F4FB','Radio'],['1F4BF','Disc'],['1F4FC','VHS'],['1F3A5','Camera'],['1F4F7','Photo'],['1F3A6','Cinema'],['1F39E','Film'],['1F4FD','Projector'],['1F4F9','Video cam'],['1F50A','Speaker'],['1F4E1','Satellite']],
-  'Nature': [['1F30D','Globe'],['1F31F','Glowing star'],['2B50','Star'],['1F320','Shooting star'],['1F319','Moon'],['2600','Sun'],['1F327','Rain'],['26A1','Lightning'],['2744','Snowflake'],['1F30A','Wave'],['1F332','Evergreen'],['1F333','Tree'],['1F334','Palm'],['1F337','Tulip'],['1F33B','Sunflower'],['1F30C','Milky Way'],['1F3D4','Mountain'],['1F30B','Volcano']],
-  'Objects': [['1F4DA','Books'],['1F4D6','Open book'],['1F4DD','Memo'],['270F','Pencil'],['1F4BB','Laptop'],['1F5A5','Desktop'],['1F4F1','Phone'],['1F527','Wrench'],['1F528','Hammer'],['1F512','Lock'],['1F4A1','Bulb'],['1F526','Torch'],['1F3C6','Trophy'],['1F947','Gold medal'],['1F3AF','Target'],['1F3B2','Dice'],['1F9E9','Puzzle'],['1F3AE','Game'],['1F579','Joystick'],['1F381','Gift'],['1F388','Balloon'],['1F389','Party']],
-  'People': [['1F466','Boy'],['1F467','Girl'],['1F468','Man'],['1F469','Woman'],['1F476','Baby'],['1F9D1','Person'],['1F46B','Couple'],['1F46A','Family'],['1F91D','Handshake'],['1F44F','Clap'],['1F44D','Thumbs up'],['1F3CB','Gym'],['1F3C3','Running'],['1F6B4','Cycling'],['1F3CA','Swimming'],['1F9D8','Meditation'],['1F46F','Dancers']],
-  'Food': [['1F355','Pizza'],['1F354','Burger'],['1F35F','Fries'],['1F32E','Taco'],['1F363','Sushi'],['1F369','Donut'],['1F382','Cake'],['1F36B','Chocolate'],['1F37F','Popcorn'],['1F37A','Beer'],['1F377','Wine'],['2615','Coffee'],['1F375','Tea'],['1F34E','Apple'],['1F347','Grapes'],['1F353','Strawberry']],
-  'Travel': [['2708','Plane'],['1F680','Rocket'],['1F6F8','UFO'],['1F6A2','Ship'],['1F697','Car'],['1F695','Taxi'],['1F68C','Bus'],['1F682','Train'],['1F6B2','Bike'],['1F3E0','House'],['1F3E2','Office'],['1F5FC','Tower'],['1F5FA','Map'],['1F9ED','Compass']],
-  'Symbols': [['2764','Heart'],['1F9E1','Orange heart'],['1F49B','Yellow heart'],['1F49A','Green heart'],['1F499','Blue heart'],['1F49C','Purple heart'],['1F5A4','Black heart'],['2728','Sparkles'],['1F4A5','Boom'],['1F525','Fire'],['1F4A7','Droplet'],['26A0','Warning'],['2705','Check'],['274C','Cross'],['2753','Question'],['1F4AF','100'],['1F4CC','Pin']],
+  'Media':[['1F3AC','Movies'],['1F4FA','TV'],['1F3B5','Music note'],['1F3B6','Notes'],['1F3B7','Sax'],['1F3B8','Guitar'],['1F3B9','Piano'],['1F3BA','Trumpet'],['1F3BB','Violin'],['1F941','Drum'],['1F3A4','Mic'],['1F3A7','Headphones'],['1F4FB','Radio'],['1F4BF','Disc'],['1F4FC','VHS'],['1F3A5','Camera'],['1F4F7','Photo'],['1F3A6','Cinema'],['1F39E','Film'],['1F4FD','Projector'],['1F4F9','Video cam'],['1F50A','Speaker'],['1F4E1','Satellite']],
+  'Nature':[['1F30D','Globe'],['1F31F','Glowing star'],['2B50','Star'],['1F320','Shooting star'],['1F319','Moon'],['2600','Sun'],['1F327','Rain'],['26A1','Lightning'],['2744','Snowflake'],['1F30A','Wave'],['1F332','Evergreen'],['1F333','Tree'],['1F334','Palm'],['1F337','Tulip'],['1F33B','Sunflower'],['1F30C','Milky Way'],['1F3D4','Mountain'],['1F30B','Volcano']],
+  'Objects':[['1F4DA','Books'],['1F4D6','Open book'],['1F4DD','Memo'],['270F','Pencil'],['1F4BB','Laptop'],['1F5A5','Desktop'],['1F4F1','Phone'],['1F527','Wrench'],['1F528','Hammer'],['1F512','Lock'],['1F4A1','Bulb'],['1F526','Torch'],['1F3C6','Trophy'],['1F947','Gold medal'],['1F3AF','Target'],['1F3B2','Dice'],['1F9E9','Puzzle'],['1F3AE','Game'],['1F579','Joystick'],['1F381','Gift'],['1F388','Balloon'],['1F389','Party']],
+  'People':[['1F466','Boy'],['1F467','Girl'],['1F468','Man'],['1F469','Woman'],['1F476','Baby'],['1F9D1','Person'],['1F46B','Couple'],['1F46A','Family'],['1F91D','Handshake'],['1F44F','Clap'],['1F44D','Thumbs up'],['1F3CB','Gym'],['1F3C3','Running'],['1F6B4','Cycling'],['1F3CA','Swimming'],['1F9D8','Meditation'],['1F46F','Dancers']],
+  'Food':[['1F355','Pizza'],['1F354','Burger'],['1F35F','Fries'],['1F32E','Taco'],['1F363','Sushi'],['1F369','Donut'],['1F382','Cake'],['1F36B','Chocolate'],['1F37F','Popcorn'],['1F37A','Beer'],['1F377','Wine'],['2615','Coffee'],['1F375','Tea'],['1F34E','Apple'],['1F347','Grapes'],['1F353','Strawberry']],
+  'Travel':[['2708','Plane'],['1F680','Rocket'],['1F6F8','UFO'],['1F6A2','Ship'],['1F697','Car'],['1F695','Taxi'],['1F68C','Bus'],['1F682','Train'],['1F6B2','Bike'],['1F3E0','House'],['1F3E2','Office'],['1F5FC','Tower'],['1F5FA','Map'],['1F9ED','Compass']],
+  'Symbols':[['2764','Heart'],['1F9E1','Orange heart'],['1F49B','Yellow heart'],['1F49A','Green heart'],['1F499','Blue heart'],['1F49C','Purple heart'],['1F5A4','Black heart'],['2728','Sparkles'],['1F4A5','Boom'],['1F525','Fire'],['1F4A7','Droplet'],['26A0','Warning'],['2705','Check'],['274C','Cross'],['2753','Question'],['1F4AF','100'],['1F4CC','Pin']],
 };
 const emojiImgCache = {};
-function emojiUrl(code){ return EMOJI_CDN + code + '.svg'; }
+function emojiUrl(code){ return EMOJI_CDN+code+'.svg'; }
 function preloadEmoji(code){ if(emojiImgCache[code])return emojiImgCache[code];const img=new Image();img.crossOrigin='anonymous';img.src=emojiUrl(code);emojiImgCache[code]=img;return img; }
-// Preload all emojis with crossOrigin for canvas use
 Object.values(emojiCategories).flat().forEach(([code])=>preloadEmoji(code));
 
 let currentEmojiCat='Media', emojiSearchTerm='';
@@ -370,10 +356,9 @@ document.querySelectorAll('.pos-btn').forEach(btn=>{
   btn.onclick=()=>{
     document.querySelectorAll('.pos-inline-btn').forEach(b=>b.classList.remove('active'));
     document.querySelectorAll('.pos-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    emojiGridPos=btn.dataset.pos;
+    btn.classList.add('active'); emojiGridPos=btn.dataset.pos;
     if(emojiLayer==='inline-before'||emojiLayer==='inline-after')emojiLayer='behind';
-    syncLayerBtns();render();
+    syncLayerBtns(); render();
   };
 });
 document.getElementById('layerBehind').onclick=()=>{emojiLayer='behind';document.querySelectorAll('.pos-inline-btn').forEach(b=>b.classList.remove('active'));syncLayerBtns();render();};
@@ -456,18 +441,37 @@ document.querySelectorAll('.toggle-btn[id^="tog"]').forEach(btn=>{
   const key=btn.id.replace('tog','').toLowerCase();toggles[key]=btn.dataset.on==='true';
   btn.onclick=()=>{toggles[key]=!toggles[key];btn.dataset.on=toggles[key];btn.classList.toggle('on',toggles[key]);const lbl=btn.textContent.replace(/: ON|: OFF/,'');btn.textContent=lbl+(toggles[key]?': ON':': OFF');render();};
 });
-const rangeDisplays={textScale:v=>v+'%',bokehAmount:v=>v,bokehSize:v=>v,iconOpacity:v=>v+'%',emojiSize:v=>v+'%',emojiOpacity:v=>v+'%'};
-Object.keys(rangeDisplays).forEach(id=>{const el=document.getElementById(id),disp=document.getElementById(id+'Val');if(el)el.oninput=()=>{if(disp)disp.textContent=rangeDisplays[id](el.value);render();};});
+
+// Range displays
+const rangeDisplays={
+  textScale:   v=>v+'%',
+  subtitleSize:v=>v+'px',
+  subtitleGap: v=>v+'px',
+  bokehAmount: v=>v,
+  bokehSize:   v=>v,
+  iconOpacity: v=>v+'%',
+  emojiSize:   v=>v+'%',
+  emojiOpacity:v=>v+'%',
+};
+Object.keys(rangeDisplays).forEach(id=>{
+  const el=document.getElementById(id),disp=document.getElementById(id+'Val');
+  if(el) el.oninput=()=>{if(disp)disp.textContent=rangeDisplays[id](el.value);render();};
+});
 ['fontWeight','textPos','geoStyle'].forEach(id=>document.getElementById(id).addEventListener('change',render));
 ['customTitle','subtitleText'].forEach(id=>document.getElementById(id).addEventListener('input',render));
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Canvas helpers ────────────────────────────────────────────────────────────
 function hexToRgb(h){return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
 function seededRng(seed){let s=seed%2147483647;if(s<=0)s+=2147483646;return()=>{s=s*16807%2147483647;return(s-1)/2147483646;};}
 function rr(x,y,w,h,r){ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();}
-function fitFontSize(text,fw,targetW){const fs=`'${currentFont}','Segoe UI',system-ui,sans-serif`;let lo=40,hi=900,best=40;for(let i=0;i<24;i++){const mid=(lo+hi)/2;ctx.font=`${fw} ${mid}px ${fs}`;if(ctx.measureText(text).width<=targetW){best=mid;lo=mid;}else hi=mid;if(hi-lo<0.5)break;}return best;}
+function fitFontSize(text,fw,targetW){
+  const fs=`'${currentFont}','Segoe UI',system-ui,sans-serif`;
+  let lo=40,hi=900,best=40;
+  for(let i=0;i<24;i++){const mid=(lo+hi)/2;ctx.font=`${fw} ${mid}px ${fs}`;if(ctx.measureText(text).width<=targetW){best=mid;lo=mid;}else hi=mid;if(hi-lo<0.5)break;}
+  return best;
+}
 
-// ── Geo patterns ──────────────────────────────────────────────────────────────
+// ── Geo ───────────────────────────────────────────────────────────────────────
 function drawHexGrid(ac,al){const[r,g,b]=ac,R=55,rw=R*Math.sqrt(3),rh=R*1.5;ctx.strokeStyle=`rgba(${r},${g},${b},${al})`;ctx.lineWidth=1;for(let row=-1;row<H/rh+2;row++)for(let col=-1;col<W/rw+2;col++){const cx=col*rw+(row%2===0?0:rw/2),cy=row*rh;ctx.beginPath();for(let i=0;i<6;i++){const a=Math.PI/180*(60*i-30);i===0?ctx.moveTo(cx+R*Math.cos(a),cy+R*Math.sin(a)):ctx.lineTo(cx+R*Math.cos(a),cy+R*Math.sin(a));}ctx.closePath();ctx.stroke();}}
 function drawTriMesh(ac,al,rng){const[r,g,b]=ac,cols=18,rows=7,cw=W/cols,ch=H/rows,pts=[];for(let row=0;row<=rows;row++){pts[row]=[];for(let col=0;col<=cols;col++){pts[row][col]=[col*cw+(row>0&&row<rows?(rng()-0.5)*cw*0.5:0),row*ch+(col>0&&col<cols?(rng()-0.5)*ch*0.5:0)];}}ctx.lineWidth=0.8;for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){const tl=pts[row][col],tr2=pts[row][col+1],bl=pts[row+1][col],br=pts[row+1][col+1];const s1=al*(0.4+rng()*0.6),s2=al*(0.4+rng()*0.6);ctx.fillStyle=`rgba(${r},${g},${b},${s1})`;ctx.strokeStyle=`rgba(${r},${g},${b},${s1*0.5})`;ctx.beginPath();ctx.moveTo(...tl);ctx.lineTo(...tr2);ctx.lineTo(...bl);ctx.closePath();ctx.fill();ctx.stroke();ctx.fillStyle=`rgba(${r},${g},${b},${s2})`;ctx.strokeStyle=`rgba(${r},${g},${b},${s2*0.5})`;ctx.beginPath();ctx.moveTo(...tr2);ctx.lineTo(...br);ctx.lineTo(...bl);ctx.closePath();ctx.fill();ctx.stroke();}}
 function drawCircuit(ac,al,rng){const[r,g,b]=ac;ctx.strokeStyle=`rgba(${r},${g},${b},${al})`;ctx.lineWidth=1.5;for(let i=0;i<28;i++){const nx=rng()*W,ny=rng()*H,l1=60+rng()*140,l2=30+rng()*90,dir=Math.floor(rng()*4),dx=[1,0,-1,0][dir],dy=[0,1,0,-1][dir];ctx.beginPath();ctx.moveTo(nx,ny);ctx.lineTo(nx+dx*l1,ny+dy*l1);const t=rng()>.5?1:-1;ctx.lineTo(nx+dx*l1+dy*t*l2,ny+dy*l1-dx*t*l2);ctx.stroke();ctx.fillStyle=`rgba(${r},${g},${b},${al*1.8})`;ctx.beginPath();ctx.arc(nx,ny,3.5,0,Math.PI*2);ctx.fill();}}
@@ -477,7 +481,7 @@ function drawChevrons(ac,al){const[r,g,b]=ac;ctx.strokeStyle=`rgba(${r},${g},${b
 function drawCrosshatch(ac,al){const[r,g,b]=ac;ctx.strokeStyle=`rgba(${r},${g},${b},${al})`;ctx.lineWidth=0.8;for(let i=-H;i<W+H;i+=60){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i-H,H);ctx.stroke();}}
 function drawGeo(name,ac,al,rng){ctx.save();if(name==='hexgrid')drawHexGrid(ac,al);else if(name==='trianglemesh')drawTriMesh(ac,al,rng);else if(name==='circuit')drawCircuit(ac,al,rng);else if(name==='diamondgrid')drawDiamondGrid(ac,al);else if(name==='dots')drawDots(ac,al);else if(name==='chevrons')drawChevrons(ac,al);else if(name==='crosshatch')drawCrosshatch(ac,al);ctx.restore();}
 
-// ── Silhouette icons ──────────────────────────────────────────────────────────
+// ── Silhouette ────────────────────────────────────────────────────────────────
 function drawLibIcon(lib,col,alpha){
   if(alpha<=0)return;
   ctx.save();ctx.fillStyle=col;ctx.strokeStyle=col;ctx.globalAlpha=alpha;
@@ -503,18 +507,10 @@ function drawEmoji(opacity,sizePct,titleX,titleY,titleW,fontSize,textAlign){
   const sz=isInline?fontSize*1.1:H*(sizePct/100);
   ctx.save();ctx.globalAlpha=opacity/100;
   if(isInline){
-    const gap=fontSize*0.15;
-    const ey=titleY-sz*0.85;
+    const gap=fontSize*0.15,ey=titleY-sz*0.85;
     let ex;
-    if(emojiLayer==='inline-before'){
-      if(textAlign==='center')ex=titleX-titleW/2-sz-gap;
-      else if(textAlign==='left')ex=titleX-sz-gap;
-      else ex=titleX-titleW-sz-gap;
-    }else{
-      if(textAlign==='center')ex=titleX+titleW/2+gap;
-      else if(textAlign==='left')ex=titleX+titleW+gap;
-      else ex=titleX+gap;
-    }
+    if(emojiLayer==='inline-before'){if(textAlign==='center')ex=titleX-titleW/2-sz-gap;else if(textAlign==='left')ex=titleX-sz-gap;else ex=titleX-titleW-sz-gap;}
+    else{if(textAlign==='center')ex=titleX+titleW/2+gap;else if(textAlign==='left')ex=titleX+titleW+gap;else ex=titleX+gap;}
     ctx.drawImage(img,ex,ey,sz,sz);
   }else{
     const[ex,ey]=getEmojiXY(emojiGridPos,sz);
@@ -526,18 +522,21 @@ function drawEmoji(opacity,sizePct,titleX,titleY,titleW,fontSize,textAlign){
 // ── Main render ───────────────────────────────────────────────────────────────
 function render(){
   const bgHex=getColor('BgColor'),accentHex=getColor('AccentColor'),iconHex=getColor('IconColor'),textCol=getColor('TextColor');
-  const textScalePct=parseInt(document.getElementById('textScale').value);
-  const fontWeight=document.getElementById('fontWeight').value;
-  const textPos=document.getElementById('textPos').value;
-  const geoStyle=document.getElementById('geoStyle').value;
-  const bokehAmt=parseInt(document.getElementById('bokehAmount').value);
-  const bokehSz=parseInt(document.getElementById('bokehSize').value);
-  const iconOp=parseInt(document.getElementById('iconOpacity').value)/100;
-  const emojiSz=parseInt(document.getElementById('emojiSize').value);
-  const emojiOp=parseInt(document.getElementById('emojiOpacity').value);
-  const customT=document.getElementById('customTitle').value.trim();
-  const subtitle=document.getElementById('subtitleText').value.trim();
-  const title=customT||(selectedLib?selectedLib.label:'');
+  const textScalePct = parseInt(document.getElementById('textScale').value);
+  const subtitleSizePx= parseInt(document.getElementById('subtitleSize').value);  // ← independent px
+  const subtitleGapPx = parseInt(document.getElementById('subtitleGap').value);   // ← independent gap
+  const fontWeight    = document.getElementById('fontWeight').value;
+  const textPos       = document.getElementById('textPos').value;
+  const geoStyle      = document.getElementById('geoStyle').value;
+  const bokehAmt      = parseInt(document.getElementById('bokehAmount').value);
+  const bokehSz       = parseInt(document.getElementById('bokehSize').value);
+  const iconOp        = parseInt(document.getElementById('iconOpacity').value)/100;
+  const emojiSz       = parseInt(document.getElementById('emojiSize').value);
+  const emojiOp       = parseInt(document.getElementById('emojiOpacity').value);
+  const customT       = document.getElementById('customTitle').value.trim();
+  const subtitle      = document.getElementById('subtitleText').value.trim();
+  const title         = customT||(selectedLib?selectedLib.label:'');
+
   const acRgb=hexToRgb(accentHex);
   const[ar,ag,ab]=acRgb;
   const[tr,tg,tb]=hexToRgb(textCol);
@@ -567,7 +566,12 @@ function render(){
   ctx.font=`${fontWeight} ${fontSize}px ${fs}`;
   const titleW=ctx.measureText(title).width;
   const hasSub=toggles['subtitle']&&subtitle;
-  const titleY=H/2+(hasSub?fontSize*0.08:fontSize*0.28);
+
+  // Vertical centering: account for subtitle height so the whole block is centred
+  const blockH = hasSub ? fontSize + subtitleGapPx + subtitleSizePx : fontSize;
+  const blockTop = (H - blockH) / 2;
+  const titleY = blockTop + fontSize * 0.82; // baseline of title (cap-height approx)
+
   let titleX,textAlign;
   if(textPos==='center'){textAlign='center';titleX=W/2;}
   else if(textPos==='left'){textAlign='left';titleX=60;}
@@ -579,12 +583,37 @@ function render(){
 
   if(toggles['vignette']){const v=ctx.createRadialGradient(W/2,H/2,H*0.18,W/2,H/2,W*0.72);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,0.72)');ctx.fillStyle=v;ctx.fillRect(0,0,W,H);}
 
-  // Title text
+  // Title
   ctx.font=`${fontWeight} ${fontSize}px ${fs}`;
-  ctx.textAlign=textAlign;ctx.textBaseline='alphabetic';ctx.fillStyle=textCol;ctx.fillText(title,titleX,titleY);
+  ctx.textAlign=textAlign;ctx.textBaseline='alphabetic';ctx.fillStyle=textCol;
+  ctx.fillText(title,titleX,titleY);
 
-  if(toggles['underline']){let ulX=titleX;if(textAlign==='center')ulX=titleX-titleW/2;else if(textAlign==='right')ulX=titleX-titleW;const ulH=Math.max(3,Math.round(fontSize*0.025));ctx.fillStyle=`rgba(${ar},${ag},${ab},0.75)`;ctx.fillRect(ulX,titleY+ulH+4,Math.min(titleW,W-80),ulH);}
-  if(hasSub){const subSz=Math.round(fontSize*0.28);ctx.font=`300 ${subSz}px ${fs}`;ctx.fillStyle=`rgba(${tr},${tg},${tb},0.52)`;ctx.textAlign=textAlign;ctx.textBaseline='alphabetic';ctx.fillText(subtitle,titleX,titleY+fontSize*0.38+subSz*0.5);}
+  // Underline
+  if(toggles['underline']){
+    let ulX=titleX;if(textAlign==='center')ulX=titleX-titleW/2;else if(textAlign==='right')ulX=titleX-titleW;
+    const ulH=Math.max(3,Math.round(fontSize*0.025));
+    ctx.fillStyle=`rgba(${ar},${ag},${ab},0.75)`;
+    ctx.fillRect(ulX,titleY+ulH+4,Math.min(titleW,W-80),ulH);
+  }
+
+  // Subtitle — fixed pixel size, clamped so it never overflows width
+  if(hasSub){
+    const subY = titleY + subtitleGapPx + subtitleSizePx * 0.5;
+    ctx.font=`300 ${subtitleSizePx}px ${fs}`;
+
+    // Measure and warn if too wide — auto-scale down if needed
+    const subW = ctx.measureText(subtitle).width;
+    const maxSubW = W - 120;
+    let actualSubSize = subtitleSizePx;
+    if(subW > maxSubW){
+      actualSubSize = Math.floor(subtitleSizePx * maxSubW / subW);
+      ctx.font=`300 ${actualSubSize}px ${fs}`;
+    }
+
+    ctx.fillStyle=`rgba(${tr},${tg},${tb},0.52)`;
+    ctx.textAlign=textAlign;ctx.textBaseline='alphabetic';
+    ctx.fillText(subtitle,titleX,subY);
+  }
 
   // Front emoji
   if(emojiLayer==='front')drawEmoji(emojiOp,emojiSz,titleX,titleY,titleW,fontSize,textAlign);
