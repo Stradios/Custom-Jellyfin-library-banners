@@ -2,7 +2,7 @@
 
 A browser-based tool for creating custom library banner images for your [Jellyfin](https://jellyfin.org/) media server. No installation, no account, no server needed.
 
-***#👉 [Open the generator](https://stradios.github.io/Custom-Jellyfin-library-banners/)***
+***👉 [Open the generator](https://stradios.github.io/Custom-Jellyfin-library-banners/)***
 
 ---
 
